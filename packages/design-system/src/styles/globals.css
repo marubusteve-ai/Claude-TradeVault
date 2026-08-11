@@ -1,0 +1,16 @@
+@import "tailwindcss";
+@import "./theme.css";
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+}
+
+/* Reach for this on any element displaying a number — price, P&L, percentage,
+   R-multiple — so figures use tabular (fixed-width) digits and align cleanly
+   in columns instead of the proportional spacing body text uses. */
+.font-tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

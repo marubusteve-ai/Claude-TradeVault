@@ -1,0 +1,382 @@
+// TradeOS — PostgreSQL schema (Prisma 7, rust-free client by default).
+// This is the server-side source of truth. The client mirrors the entities
+// relevant to offline editing into IndexedDB (see @trading-os/persistence-indexeddb)
+// and reconciles through the sync queue.
+//
+// Money/price fields use Decimal, never Float — the same rule the domain
+// layer's Money value object enforces in application code. Json fields are
+// used deliberately for shapes that are semi-structured and evolve often
+// (custom fields, widget layouts, rule sets) rather than every field
+// requiring its own migration.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// Identity
+// ─────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  timezone     String   @default("UTC")
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  accounts         TradingAccount[]
+  strategies       Strategy[]
+  psychologyLogs   PsychologyEntry[]
+  customFields     CustomFieldDefinition[]
+  dashboardLayouts DashboardLayout[]
+  ruleSets         PropFirmRuleSet[]
+  tags             Tag[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// Accounts
+// ─────────────────────────────────────────────
+
+enum AccountType {
+  LIVE
+  DEMO
+  PROP_EVALUATION
+  PROP_FUNDED
+  BACKTEST
+  FORWARD_TEST
+  CUSTOM
+}
+
+enum AccountStatus {
+  ACTIVE
+  PASSED
+  FAILED
+  BREACHED
+  PAUSED
+  ARCHIVED
+}
+
+model TradingAccount {
+  id              String           @id @default(cuid())
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  type            AccountType
+  broker          String?
+  propFirm        String?
+  platform        String?
+  startingBalance Decimal          @db.Decimal(18, 4)
+  currency        String           @default("USD")
+  challengePhase  String?
+  status          AccountStatus    @default(ACTIVE)
+  ruleSetId       String?
+  ruleSet         PropFirmRuleSet? @relation(fields: [ruleSetId], references: [id])
+  timezone        String           @default("UTC")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  archivedAt      DateTime?
+
+  trades  Trade[]
+  payouts Payout[]
+
+  @@index([userId, status])
+  @@map("trading_accounts")
+}
+
+model Payout {
+  id              String         @id @default(cuid())
+  accountId       String
+  account         TradingAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  grossAmount     Decimal        @db.Decimal(18, 4)
+  splitPercentage Decimal        @db.Decimal(5, 2)
+  netAmount       Decimal        @db.Decimal(18, 4)
+  payoutDate      DateTime
+  certificateUrl  String?
+  notes           String?
+  createdAt       DateTime       @default(now())
+
+  @@index([accountId])
+  @@map("payouts")
+}
+
+// ─────────────────────────────────────────────
+// Prop firm rules — fully data-driven, editable per user, per firm
+// ─────────────────────────────────────────────
+
+model PropFirmRuleSet {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  firmName  String?
+  rules     Json // full PropFirmRuleSetRecord payload — Zod-validated at the application layer, not the DB
+  isCustom  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts TradingAccount[]
+
+  @@index([userId])
+  @@map("prop_firm_rule_sets")
+}
+
+// ─────────────────────────────────────────────
+// Trades — the core entity
+// ─────────────────────────────────────────────
+
+enum TradeDirection {
+  LONG
+  SHORT
+}
+
+enum TradeStatus {
+  OPEN
+  CLOSED
+  PARTIALLY_CLOSED
+  CANCELLED
+}
+
+model Trade {
+  id        String         @id @default(cuid())
+  accountId String
+  account   TradingAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  instrument      String
+  assetClass      String
+  session         String?
+  marketCondition String?
+  timeframe       String?
+
+  direction TradeDirection
+  entryTime DateTime?
+  exitTime  DateTime?
+
+  entryPrice         Decimal? @db.Decimal(18, 6)
+  exitPrice          Decimal? @db.Decimal(18, 6)
+  quantity           Decimal  @default(0) @db.Decimal(18, 6)
+  contractMultiplier Decimal? @db.Decimal(18, 6)
+  currency           String   @default("USD")
+
+  stopLossPrice    Decimal? @db.Decimal(18, 6)
+  stopLossReason   String?
+  takeProfitLevels Json     @default("[]")
+
+  commission    Decimal  @default(0) @db.Decimal(18, 4)
+  swap          Decimal  @default(0) @db.Decimal(18, 4)
+  spread        Decimal? @db.Decimal(18, 6)
+  slippagePrice Decimal? @db.Decimal(18, 6)
+
+  maePrice  Decimal? @db.Decimal(18, 6)
+  maeAmount Decimal? @db.Decimal(18, 4)
+  mfePrice  Decimal? @db.Decimal(18, 6)
+  mfeAmount Decimal? @db.Decimal(18, 4)
+
+  riskAmount Decimal? @db.Decimal(18, 4)
+
+  status  TradeStatus @default(OPEN)
+  outcome String?
+
+  strategyId String?
+  strategy   Strategy? @relation(fields: [strategyId], references: [id])
+  setupId    String?
+  setup      Setup?    @relation(fields: [setupId], references: [id])
+
+  emotionalState String[] @default([])
+  comment        String?
+  mistakes       String[] @default([])
+  lessons        String?
+  rating         Int?
+
+  links        Json @default("{}")
+  customFields Json @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags TradeTag[]
+
+  @@index([accountId, status])
+  @@index([accountId, exitTime])
+  @@index([strategyId])
+  @@index([setupId])
+  @@map("trades")
+}
+
+// ─────────────────────────────────────────────
+// Playbook
+// ─────────────────────────────────────────────
+
+model Strategy {
+  id                     String   @id @default(cuid())
+  userId                 String
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                   String
+  description            String?
+  assetClasses           String[] @default([])
+  entryRules             Json     @default("[]")
+  exitRules              Json     @default("[]")
+  confirmationChecklist  Json     @default("[]")
+  invalidationRules      Json     @default("[]")
+  exampleScreenshots     String[] @default([])
+  tags                   String[] @default([])
+  isActive               Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  setups Setup[]
+  trades Trade[]
+
+  @@index([userId])
+  @@map("strategies")
+}
+
+model Setup {
+  id                    String    @id @default(cuid())
+  strategyId            String?
+  strategy              Strategy? @relation(fields: [strategyId], references: [id])
+  name                  String
+  description           String?
+  entryRules            Json      @default("[]")
+  exitRules             Json      @default("[]")
+  confirmationChecklist Json      @default("[]")
+  invalidationRules     Json      @default("[]")
+  exampleScreenshots    String[]  @default([])
+  isActive              Boolean   @default(true)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  trades Trade[]
+
+  @@index([strategyId])
+  @@map("setups")
+}
+
+// ─────────────────────────────────────────────
+// Psychology
+// ─────────────────────────────────────────────
+
+model PsychologyEntry {
+  id                      String   @id @default(cuid())
+  userId                  String
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date                    DateTime
+  mood                    Int?
+  confidence              Int?
+  stress                  Int?
+  discipline              Int?
+  patience                Int?
+  ruleAdherencePercentage Decimal? @db.Decimal(5, 2)
+  notes                   String?
+  linkedTradeIds          String[] @default([])
+  tags                    String[] @default([])
+  createdAt               DateTime @default(now())
+
+  @@index([userId, date])
+  @@map("psychology_entries")
+}
+
+// ─────────────────────────────────────────────
+// Tags & custom fields
+// ─────────────────────────────────────────────
+
+model Tag {
+  id       String  @id @default(cuid())
+  userId   String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name     String
+  category String?
+  color    String?
+
+  trades TradeTag[]
+
+  @@unique([userId, name])
+  @@map("tags")
+}
+
+model TradeTag {
+  tradeId String
+  trade   Trade  @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  tagId   String
+  tag     Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([tradeId, tagId])
+  @@map("trade_tags")
+}
+
+model CustomFieldDefinition {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entityType   String
+  label        String
+  type         String
+  options      String[] @default([])
+  required     Boolean  @default(false)
+  defaultValue Json?
+  order        Int      @default(0)
+
+  @@index([userId, entityType])
+  @@map("custom_field_definitions")
+}
+
+// ─────────────────────────────────────────────
+// Dashboard & personalization
+// ─────────────────────────────────────────────
+
+model DashboardLayout {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  isDefault Boolean  @default(false)
+  widgets   Json // array of { id, type, x, y, w, h, config }
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("dashboard_layouts")
+}
+
+// ─────────────────────────────────────────────
+// Notifications & audit
+// ─────────────────────────────────────────────
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String?
+  severity  String    @default("info")
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}

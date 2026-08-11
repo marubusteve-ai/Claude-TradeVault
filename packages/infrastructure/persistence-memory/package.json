@@ -1,0 +1,15 @@
+{
+  "name": "@trading-os/persistence-memory",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "description": "In-memory TradeRepository/AccountRepository implementations. Used by application-layer unit tests (no database needed) and by apps/web's demo mode.",
+  "dependencies": {
+    "@trading-os/domain": "workspace:*",
+    "@trading-os/shared-types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}

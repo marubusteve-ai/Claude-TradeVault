@@ -1,0 +1,90 @@
+/**
+ * Tailwind CSS v4 is CSS-first — no tailwind.config.js/theme.extend needed.
+ * The @theme block below both defines design tokens AND generates the
+ * matching utility classes (bg-brand, text-profit, border-border, etc.)
+ * at build time.
+ *
+ * Each @theme value points at a second-layer `--tos-*` variable instead of
+ * a literal color. That indirection is what makes the theme swappable at
+ * runtime: Tailwind bakes `--color-brand: var(--tos-brand)` into the
+ * generated CSS once, and then simply changing which `--tos-brand` is in
+ * scope (via the `[data-theme]` selector below) re-themes every utility
+ * class instantly, with no rebuild — required for a user-facing theme
+ * switcher rather than a build-time-only dark mode.
+ */
+@theme {
+  --font-sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  --color-canvas: var(--tos-bg-canvas);
+  --color-surface: var(--tos-bg-surface);
+  --color-surface-raised: var(--tos-bg-surface-raised);
+  --color-surface-hover: var(--tos-bg-surface-hover);
+  --color-border: var(--tos-border);
+  --color-border-subtle: var(--tos-border-subtle);
+  --color-text-primary: var(--tos-text-primary);
+  --color-text-secondary: var(--tos-text-secondary);
+  --color-text-muted: var(--tos-text-muted);
+  --color-brand: var(--tos-brand);
+  --color-brand-hover: var(--tos-brand-hover);
+  --color-brand-foreground: var(--tos-brand-foreground);
+  --color-profit: var(--tos-profit);
+  --color-profit-muted: var(--tos-profit-muted);
+  --color-loss: var(--tos-loss);
+  --color-loss-muted: var(--tos-loss-muted);
+  --color-warning: var(--tos-warning);
+  --color-info: var(--tos-info);
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  --ease-os: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Theme-mode values — the layer @theme indirects through. Swapping
+   [data-theme] on <html> re-themes the entire app with zero JS re-render
+   and zero CSS rebuild. */
+:root,
+[data-theme="dark"] {
+  --tos-bg-canvas: #0a0e16;
+  --tos-bg-surface: #0f1420;
+  --tos-bg-surface-raised: #141a28;
+  --tos-bg-surface-hover: #1b2333;
+  --tos-border: #283248;
+  --tos-border-subtle: #1b2333;
+  --tos-text-primary: #f5f6fa;
+  --tos-text-secondary: #b0bad0;
+  --tos-text-muted: #8794b0;
+  --tos-brand: #d99a3a;
+  --tos-brand-hover: #e8b563;
+  --tos-brand-foreground: #0a0e16;
+  --tos-profit: #14b881;
+  --tos-profit-muted: #43cc9c;
+  --tos-loss: #dd4a52;
+  --tos-loss-muted: #e97a80;
+  --tos-warning: #e06b1a;
+  --tos-info: #3b7ae0;
+}
+
+[data-theme="light"] {
+  --tos-bg-canvas: #f5f6fa;
+  --tos-bg-surface: #ffffff;
+  --tos-bg-surface-raised: #ffffff;
+  --tos-bg-surface-hover: #e9ecf3;
+  --tos-border: #d5dae6;
+  --tos-border-subtle: #e9ecf3;
+  --tos-text-primary: #0f1420;
+  --tos-text-secondary: #283248;
+  --tos-text-muted: #5e6d8f;
+  --tos-brand: #b8791f;
+  --tos-brand-hover: #d99a3a;
+  --tos-brand-foreground: #0a0e16;
+  --tos-profit: #0e9f6e;
+  --tos-profit-muted: #14b881;
+  --tos-loss: #c2373f;
+  --tos-loss-muted: #dd4a52;
+  --tos-warning: #c2540c;
+  --tos-info: #1f5fc4;
+}
