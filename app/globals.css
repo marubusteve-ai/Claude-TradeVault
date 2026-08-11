@@ -1,0 +1,44 @@
+@import "tailwindcss";
+@import "@trading-os/design-system/styles/theme.css";
+
+/* layout.tsx loads IBM Plex Sans/Mono via next/font/google (self-hosted,
+   zero layout shift, no external request at runtime) and exposes them as
+   --font-sans-loaded / --font-mono-loaded on <html>. Rebinding the shared
+   design-system's generic --font-sans/--font-mono tokens to prefer those
+   here keeps the token *names* consistent across every consumer of the
+   design system while letting this specific Next.js app opt into
+   Next's font optimization without design-system needing to know Next
+   exists. */
+:root {
+  --font-sans: var(--font-sans-loaded), "IBM Plex Sans", sans-serif;
+  --font-mono: var(--font-mono-loaded), "IBM Plex Mono", monospace;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+}
+
+.font-tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* react-grid-layout ships unstyled placeholder/resize-handle elements —
+   themed here rather than overridden per-widget so every widget gets
+   consistent drag/resize affordances for free. */
+.react-grid-item.react-grid-placeholder {
+  background: var(--color-brand) !important;
+  opacity: 0.15 !important;
+  border-radius: var(--radius-lg);
+}
+
+.react-resizable-handle {
+  opacity: 0;
+  transition: opacity 150ms var(--ease-os);
+}
+
+.react-grid-item:hover .react-resizable-handle {
+  opacity: 1;
+}
