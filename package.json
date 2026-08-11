@@ -1,0 +1,32 @@
+{
+  "name": "trading-os",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TradeOS — institutional-grade personal trading journal & performance analytics platform",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "packages/infrastructure/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json,css}\"",
+    "db:generate": "pnpm --filter @trading-os/persistence-postgres generate",
+    "db:migrate": "pnpm --filter @trading-os/persistence-postgres migrate:dev",
+    "db:studio": "pnpm --filter @trading-os/persistence-postgres studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "^6.0.3",
+    "prettier": "^3.4.0",
+    "@types/node": "^22.10.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,0 +1,33 @@
+graph TD
+    subgraph Client["Client — Next.js + React"]
+        UI["Presentation Components"]
+        StateLayer["Zustand + TanStack Query"]
+        LocalDB[("IndexedDB — Dexie")]
+    end
+
+    subgraph Server["Server — Node.js API"]
+        API["tRPC Layer"]
+        AppLayer["Application — Use Cases"]
+        DomainLayer["Domain — Entities, Value Objects, Services"]
+        Postgres[("PostgreSQL")]
+    end
+
+    subgraph Shared["Shared Packages"]
+        DesignSystem["Design System"]
+        Analytics["Analytics Engine"]
+        AIServices["AI Services"]
+        SharedTypes["Shared Types (Zod)"]
+    end
+
+    UI --> StateLayer
+    StateLayer --> LocalDB
+    StateLayer -- sync --> API
+    API --> AppLayer
+    AppLayer --> DomainLayer
+    DomainLayer --> Postgres
+
+    UI -.styled by.-> DesignSystem
+    AppLayer -.uses.-> Analytics
+    AppLayer -.uses.-> AIServices
+    DomainLayer -.validated by.-> SharedTypes
+    LocalDB -.mirrors schema of.-> SharedTypes
